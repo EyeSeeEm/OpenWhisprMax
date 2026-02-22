@@ -195,10 +195,14 @@ export const useAudioRecording = (toast, options = {}) => {
 
       if (currentState.isContinuousMode) {
         // Currently in continuous mode - stop it
+        void playStopCue();
         audioManagerRef.current.stopContinuousRecording();
       } else if (!currentState.isRecording && !currentState.isProcessing) {
         // Not recording - start continuous mode
-        await audioManagerRef.current.startContinuousRecording();
+        const didStart = await audioManagerRef.current.startContinuousRecording();
+        if (didStart) {
+          void playStartCue();
+        }
       }
     };
 
