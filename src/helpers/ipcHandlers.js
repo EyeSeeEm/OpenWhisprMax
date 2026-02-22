@@ -1,4 +1,4 @@
-const { ipcMain, app, shell, BrowserWindow } = require("electron");
+const { ipcMain, app, shell, BrowserWindow, globalShortcut } = require("electron");
 const path = require("path");
 const http = require("http");
 const https = require("https");
@@ -94,6 +94,37 @@ class IPCHandlers {
       } else {
         this.windowManager.hideDictationPanel();
       }
+    });
+
+    // Continuous mode global shortcuts (ESC and ENTER to cancel)
+    ipcMain.handle("register-continuous-shortcuts", () => {
+      const mainWindow = this.windowManager?.mainWindow;
+
+      const cancelContinuous = () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          debugLogger.debug("Global shortcut pressed - canceling continuous mode", {}, "hotkey");
+          mainWindow.webContents.send("cancel-continuous-dictation");
+        }
+      };
+
+      // Register ESC to cancel continuous mode
+      const escRegistered = globalShortcut.register("Escape", cancelContinuous);
+      // Register ENTER to cancel continuous mode (same behavior)
+      const enterRegistered = globalShortcut.register("Return", cancelContinuous);
+
+      debugLogger.debug("Registered continuous mode shortcuts", {
+        escRegistered,
+        enterRegistered
+      }, "hotkey");
+
+      return { success: escRegistered && enterRegistered };
+    });
+
+    ipcMain.handle("unregister-continuous-shortcuts", () => {
+      globalShortcut.unregister("Escape");
+      globalShortcut.unregister("Return");
+      debugLogger.debug("Unregistered continuous mode shortcuts", {}, "hotkey");
+      return { success: true };
     });
 
     ipcMain.handle("show-dictation-panel", () => {

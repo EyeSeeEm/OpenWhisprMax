@@ -208,6 +208,8 @@ export const useAudioRecording = (toast, options = {}) => {
       if (currentState.isContinuousMode) {
         // Currently in continuous mode - stop it
         void playStopCue();
+        // Unregister global shortcuts
+        window.electronAPI.unregisterContinuousShortcuts?.();
         audioManagerRef.current.stopContinuousRecording();
       } else if (!currentState.isRecording && !currentState.isProcessing) {
         // Not recording - start continuous mode
@@ -215,6 +217,8 @@ export const useAudioRecording = (toast, options = {}) => {
         const didStart = await audioManagerRef.current.startContinuousRecording();
         if (didStart) {
           void playStartCue();
+          // Register global ESC/ENTER shortcuts to cancel continuous mode
+          window.electronAPI.registerContinuousShortcuts?.();
         }
       }
     };
@@ -223,6 +227,17 @@ export const useAudioRecording = (toast, options = {}) => {
       handleToggleContinuous();
       onToggle?.();
     });
+
+    // Handle global ESC/ENTER shortcuts canceling continuous mode
+    const handleCancelContinuous = () => {
+      if (!audioManagerRef.current?.isContinuousMode) return;
+      void playStopCue();
+      // Unregister global shortcuts
+      window.electronAPI.unregisterContinuousShortcuts?.();
+      audioManagerRef.current.cancelContinuousRecording();
+    };
+
+    const disposeCancelContinuous = window.electronAPI.onCancelContinuousDictation?.(handleCancelContinuous);
 
     const handleNoAudioDetected = () => {
       toast({
@@ -234,31 +249,16 @@ export const useAudioRecording = (toast, options = {}) => {
 
     const disposeNoAudio = window.electronAPI.onNoAudioDetected?.(handleNoAudioDetected);
 
-    // Keyboard handlers for continuous mode (Enter to finish, ESC to cancel)
-    const handleKeyDown = (event) => {
-      if (!audioManagerRef.current?.isContinuousMode) return;
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        void playStopCue();
-        audioManagerRef.current.finishContinuousRecording();
-      } else if (event.key === "Escape") {
-        event.preventDefault();
-        void playStopCue();
-        audioManagerRef.current.cancelContinuousRecording();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
     // Cleanup
     return () => {
       disposeToggle?.();
       disposeStart?.();
       disposeStop?.();
       disposeToggleContinuous?.();
+      disposeCancelContinuous?.();
       disposeNoAudio?.();
-      window.removeEventListener("keydown", handleKeyDown);
+      // Make sure global shortcuts are unregistered on cleanup
+      window.electronAPI.unregisterContinuousShortcuts?.();
       if (audioManagerRef.current) {
         audioManagerRef.current.cleanup();
       }

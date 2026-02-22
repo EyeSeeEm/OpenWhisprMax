@@ -33,6 +33,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     "toggle-continuous-dictation",
     (callback) => () => callback()
   ),
+  onCancelContinuousDictation: registerListener(
+    "cancel-continuous-dictation",
+    (callback) => () => callback()
+  ),
+  // Register/unregister global ESC/ENTER shortcuts for continuous mode
+  registerContinuousShortcuts: () => ipcRenderer.invoke("register-continuous-shortcuts"),
+  unregisterContinuousShortcuts: () => ipcRenderer.invoke("unregister-continuous-shortcuts"),
 
   // Database functions
   saveTranscription: (text) => ipcRenderer.invoke("db-save-transcription", text),
