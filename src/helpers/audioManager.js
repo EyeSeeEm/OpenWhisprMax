@@ -417,6 +417,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         result?.timings?.transcriptionProcessingDurationMs ?? null;
 
       logger.info("Pipeline timing", timingData, "performance");
+
+      // DEBUG: Output timing to console for benchmarking
+      console.log(`[TIMING] ${timingData.mode} | ${timingData.roundTripDurationMs}ms total | model: ${timingData.model} | text: ${timingData.outputTextLength} chars`);
     } catch (error) {
       const errorAtMs = Math.round(performance.now() - pipelineStart);
 
