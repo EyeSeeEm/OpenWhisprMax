@@ -1,7 +1,7 @@
-import { MousePointerClick, MicVocal } from "lucide-react";
+import { MousePointerClick, MicVocal, AudioLines } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-type ActivationMode = "tap" | "push";
+type ActivationMode = "tap" | "push" | "continuous";
 
 interface ActivationModeSelectorProps {
   value: ActivationMode;
@@ -11,6 +11,8 @@ interface ActivationModeSelectorProps {
   variant?: "default" | "compact";
 }
 
+const MODES: ActivationMode[] = ["tap", "push", "continuous"];
+
 export function ActivationModeSelector({
   value,
   onChange,
@@ -19,6 +21,7 @@ export function ActivationModeSelector({
 }: ActivationModeSelectorProps) {
   const { t } = useTranslation();
   const isCompact = variant === "compact";
+  const activeIndex = MODES.indexOf(value);
 
   return (
     <div
@@ -32,11 +35,14 @@ export function ActivationModeSelector({
       {/* Sliding indicator */}
       <div
         className={`
-          absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] rounded
+          absolute top-0.5 bottom-0.5 rounded
           bg-surface-raised border border-border-subtle
           transition-transform duration-200 ease-out
-          ${value === "push" ? "translate-x-[calc(100%+4px)]" : "translate-x-0"}
         `}
+        style={{
+          width: `calc(${100 / 3}% - 3px)`,
+          transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * 3}px))`,
+        }}
       />
 
       <button
@@ -72,6 +78,24 @@ export function ActivationModeSelector({
         <MicVocal className={isCompact ? "w-3.5 h-3.5" : "w-4 h-4"} />
         <span className={`font-medium ${isCompact ? "text-xs" : "text-sm"}`}>
           {t("common.hold")}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("continuous")}
+        className={`
+          relative z-10 flex-1 flex items-center justify-center gap-1.5 rounded
+          transition-colors duration-150
+          ${isCompact ? "px-2.5 py-1.5" : "px-3 py-2"}
+          ${disabled ? "cursor-not-allowed" : "cursor-pointer"}
+          ${value === "continuous" ? "text-foreground" : "text-muted-foreground hover:text-foreground"}
+        `}
+      >
+        <AudioLines className={isCompact ? "w-3.5 h-3.5" : "w-4 h-4"} />
+        <span className={`font-medium ${isCompact ? "text-xs" : "text-sm"}`}>
+          {t("common.continuous", "Continuous")}
         </span>
       </button>
     </div>

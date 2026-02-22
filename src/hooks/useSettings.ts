@@ -44,7 +44,7 @@ export interface ReasoningSettings {
 
 export interface HotkeySettings {
   dictationKey: string;
-  activationMode: "tap" | "push";
+  activationMode: "tap" | "push" | "continuous";
 }
 
 export interface MicrophoneSettings {
@@ -562,17 +562,18 @@ function useSettingsInternal() {
     [setDictationKeyLocal]
   );
 
-  const [activationMode, setActivationModeLocal] = useLocalStorage<"tap" | "push">(
+  const [activationMode, setActivationModeLocal] = useLocalStorage<"tap" | "push" | "continuous">(
     "activationMode",
     "tap",
     {
       serialize: String,
-      deserialize: (value) => (value === "push" ? "push" : "tap"),
+      deserialize: (value) =>
+        value === "push" ? "push" : value === "continuous" ? "continuous" : "tap",
     }
   );
 
   const setActivationMode = useCallback(
-    (mode: "tap" | "push") => {
+    (mode: "tap" | "push" | "continuous") => {
       setActivationModeLocal(mode);
       if (typeof window !== "undefined" && window.electronAPI?.notifyActivationModeChanged) {
         window.electronAPI.notifyActivationModeChanged(mode);

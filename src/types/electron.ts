@@ -179,6 +179,7 @@ declare global {
       onToggleDictation: (callback: () => void) => () => void;
       onStartDictation?: (callback: () => void) => () => void;
       onStopDictation?: (callback: () => void) => () => void;
+      onToggleContinuousDictation?: (callback: () => void) => (() => void) | void;
 
       // Database operations
       saveTranscription: (text: string) => Promise<{ id: number; success: boolean }>;
@@ -383,8 +384,8 @@ declare global {
       saveDictationKey?: (key: string) => Promise<void>;
 
       // Activation mode persistence (file-based for reliable startup)
-      getActivationMode?: () => Promise<"tap" | "push">;
-      saveActivationMode?: (mode: "tap" | "push") => Promise<void>;
+      getActivationMode?: () => Promise<"tap" | "push" | "continuous">;
+      saveActivationMode?: (mode: "tap" | "push" | "continuous") => Promise<void>;
 
       // Debug logging
       getLogLevel?: () => Promise<string>;
@@ -420,7 +421,7 @@ declare global {
       openWhisperModelsFolder?: () => Promise<{ success: boolean; error?: string }>;
 
       // Windows Push-to-Talk notifications
-      notifyActivationModeChanged?: (mode: "tap" | "push") => void;
+      notifyActivationModeChanged?: (mode: "tap" | "push" | "continuous") => void;
       notifyHotkeyChanged?: (hotkey: string) => void;
       notifyFloatingIconAutoHideChanged?: (enabled: boolean) => void;
       onFloatingIconAutoHideChanged?: (callback: (enabled: boolean) => void) => () => void;

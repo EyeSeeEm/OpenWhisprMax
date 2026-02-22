@@ -1,7 +1,16 @@
 const { app, globalShortcut, BrowserWindow, dialog, ipcMain, session } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const http = require("http");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+// DEBUG: Write to file to prove app started
+const debugLog = (msg) => {
+  const logPath = path.join(__dirname, "DEBUG_LOG.txt");
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+};
+debugLog("main.js loaded");
 
 const VALID_CHANNELS = new Set(["development", "staging", "production"]);
 const DEFAULT_OAUTH_PROTOCOL_BY_CHANNEL = {
@@ -546,6 +555,9 @@ async function startApp() {
                 windowManager.sendStartDictation();
               }
             }, MIN_HOLD_DURATION_MS);
+          } else if (activationMode === "continuous") {
+            debugLog("Hotkey pressed - continuous mode - sending toggle-continuous-dictation");
+            windowManager.mainWindow.webContents.send("toggle-continuous-dictation");
           } else {
             windowManager.showDictationPanel();
             windowManager.mainWindow.webContents.send("toggle-dictation");
@@ -607,6 +619,8 @@ async function startApp() {
             windowManager.sendStartDictation();
           }
         }, MIN_HOLD_DURATION_MS);
+      } else if (activationMode === "continuous") {
+        windowManager.mainWindow.webContents.send("toggle-continuous-dictation");
       } else {
         windowManager.showDictationPanel();
         windowManager.mainWindow.webContents.send("toggle-dictation");
@@ -667,6 +681,9 @@ async function startApp() {
       const activationMode = windowManager.getActivationMode();
       if (activationMode === "push") {
         windowManager.startWindowsPushToTalk();
+      } else if (activationMode === "continuous") {
+        windowManager.showDictationPanel();
+        windowManager.mainWindow.webContents.send("toggle-continuous-dictation");
       } else if (activationMode === "tap") {
         windowManager.showDictationPanel();
         windowManager.mainWindow.webContents.send("toggle-dictation");

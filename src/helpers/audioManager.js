@@ -64,6 +64,18 @@ class AudioManager {
     this.stopRequestedDuringStreamingStart = false;
     this.streamingFallbackRecorder = null;
     this.streamingFallbackChunks = [];
+
+    // Continuous recording state
+    this.isContinuousMode = false;
+    this.continuousStream = null;
+    this.continuousAudioContext = null;
+    this.continuousAnalyser = null;
+    this.continuousMediaRecorder = null;
+    this.continuousChunks = [];
+    this.continuousSilenceTimer = null;
+    this.continuousMonitorInterval = null;
+    this.continuousSpeechDetected = false;
+    this.continuousSegmentStartTime = null;
   }
 
   getWorkletBlobUrl() {
@@ -330,6 +342,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
   async processAudio(audioBlob, metadata = {}) {
     const pipelineStart = performance.now();
+    const isContinuous = this.isContinuousMode;
 
     try {
       const useLocalWhisper = localStorage.getItem("useLocalWhisper") === "true";
@@ -346,7 +359,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       const useCloud = isOpenWhisprCloudMode && isSignedIn;
       logger.debug(
         "Transcription routing",
-        { useLocalWhisper, useCloud, isSignedIn, cloudTranscriptionMode },
+        { useLocalWhisper, useCloud, isSignedIn, cloudTranscriptionMode, isContinuous },
         "transcription"
       );
 
@@ -375,7 +388,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         result = await this.processWithOpenAIAPI(audioBlob, metadata);
       }
 
-      if (!this.isProcessing) {
+      // In continuous mode, don't check isProcessing - segments process independently
+      if (!isContinuous && !this.isProcessing) {
         return;
       }
 
@@ -423,7 +437,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         });
       }
     } finally {
-      if (this.isProcessing) {
+      // In continuous mode, don't reset recording state - the mic stays open
+      if (!isContinuous && this.isProcessing) {
         this.isProcessing = false;
         this.onStateChange?.({ isRecording: false, isProcessing: false });
       }
@@ -1721,12 +1736,269 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     }
   }
 
+  // ── Continuous Recording ────────────────────────────────────────────
+
+  async startContinuousRecording() {
+    if (this.isContinuousMode || this.isRecording || this.isProcessing) {
+      return false;
+    }
+
+    try {
+      const constraints = await this.getAudioConstraints();
+      this.continuousStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      const audioTrack = this.continuousStream.getAudioTracks()[0];
+      if (audioTrack) {
+        const settings = audioTrack.getSettings();
+        logger.info(
+          "Continuous recording started with microphone",
+          {
+            label: audioTrack.label,
+            deviceId: settings.deviceId?.slice(0, 20) + "...",
+            sampleRate: settings.sampleRate,
+          },
+          "audio"
+        );
+      }
+
+      // Create an AudioContext + AnalyserNode for silence detection
+      this.continuousAudioContext = new AudioContext();
+      const source = this.continuousAudioContext.createMediaStreamSource(this.continuousStream);
+      this.continuousAnalyser = this.continuousAudioContext.createAnalyser();
+      this.continuousAnalyser.fftSize = 2048;
+      source.connect(this.continuousAnalyser);
+
+      this.isContinuousMode = true;
+      this.isRecording = true;
+      this.continuousSpeechDetected = false;
+      this.onStateChange?.({ isRecording: true, isProcessing: false });
+
+      // Start the first MediaRecorder segment
+      this._startContinuousSegment();
+
+      // Begin monitoring audio levels
+      this._startContinuousMonitor();
+
+      return true;
+    } catch (error) {
+      let errorTitle = "Recording Error";
+      let errorDescription = `Failed to access microphone: ${error.message}`;
+
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        errorTitle = "Microphone Access Denied";
+        errorDescription =
+          "Please grant microphone permission in your system settings and try again.";
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        errorTitle = "No Microphone Found";
+        errorDescription = "No microphone was detected. Please connect a microphone and try again.";
+      }
+
+      this.onError?.({ title: errorTitle, description: errorDescription });
+      this._cleanupContinuous();
+      return false;
+    }
+  }
+
+  stopContinuousRecording() {
+    if (!this.isContinuousMode) return false;
+
+    logger.info("Continuous recording stopping", {}, "audio");
+
+    // Stop monitoring
+    this._stopContinuousMonitor();
+
+    // If there's an active segment with speech, finalize it
+    if (
+      this.continuousMediaRecorder &&
+      this.continuousMediaRecorder.state === "recording" &&
+      this.continuousSpeechDetected
+    ) {
+      // Stop the recorder; the onstop handler will process the audio
+      this.continuousMediaRecorder.stop();
+    } else if (
+      this.continuousMediaRecorder &&
+      this.continuousMediaRecorder.state === "recording"
+    ) {
+      // No speech detected in current segment, just stop without processing
+      this.continuousMediaRecorder.onstop = null;
+      this.continuousMediaRecorder.stop();
+    }
+
+    this._cleanupContinuous();
+    return true;
+  }
+
+  _startContinuousSegment() {
+    if (!this.continuousStream || !this.isContinuousMode) return;
+
+    this.continuousChunks = [];
+    this.continuousSpeechDetected = false;
+    this.continuousSegmentStartTime = Date.now();
+
+    this.continuousMediaRecorder = new MediaRecorder(this.continuousStream);
+
+    this.continuousMediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.continuousChunks.push(event.data);
+      }
+    };
+
+    this.continuousMediaRecorder.onstop = async () => {
+      const chunks = this.continuousChunks;
+      const segmentStartTime = this.continuousSegmentStartTime;
+      this.continuousChunks = [];
+      this.continuousSegmentStartTime = null;
+
+      if (chunks.length === 0) {
+        // No audio data collected, just start next segment
+        if (this.isContinuousMode) {
+          this._startContinuousSegment();
+        }
+        return;
+      }
+
+      const mimeType = this.continuousMediaRecorder?.mimeType || "audio/webm";
+      const audioBlob = new Blob(chunks, { type: mimeType });
+
+      const durationSeconds = segmentStartTime
+        ? (Date.now() - segmentStartTime) / 1000
+        : null;
+
+      logger.info(
+        "Continuous segment complete",
+        {
+          blobSize: audioBlob.size,
+          durationSeconds,
+          chunksCount: chunks.length,
+        },
+        "audio"
+      );
+
+      // Start next segment immediately (mic stays open)
+      if (this.isContinuousMode) {
+        this._startContinuousSegment();
+        this._startContinuousMonitor();
+      }
+
+      // Process this segment's audio in the background
+      await this.processAudio(audioBlob, { durationSeconds });
+    };
+
+    this.continuousMediaRecorder.start(250); // collect data every 250ms for responsiveness
+  }
+
+  _startContinuousMonitor() {
+    this._stopContinuousMonitor();
+
+    if (!this.continuousAnalyser) return;
+
+    const SPEECH_THRESHOLD = 0.01; // RMS threshold for speech detection
+    const SILENCE_DURATION_MS = 1000; // 1 second of silence to trigger segment end
+
+    const bufferLength = this.continuousAnalyser.fftSize;
+    const dataArray = new Float32Array(bufferLength);
+
+    let silenceSince = null;
+
+    this.continuousMonitorInterval = setInterval(() => {
+      if (!this.continuousAnalyser || !this.isContinuousMode) {
+        this._stopContinuousMonitor();
+        return;
+      }
+
+      this.continuousAnalyser.getFloatTimeDomainData(dataArray);
+
+      // Compute RMS (root mean square) volume
+      let sumSquares = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sumSquares += dataArray[i] * dataArray[i];
+      }
+      const rms = Math.sqrt(sumSquares / bufferLength);
+
+      if (rms > SPEECH_THRESHOLD) {
+        // Speech detected
+        this.continuousSpeechDetected = true;
+        silenceSince = null;
+      } else if (this.continuousSpeechDetected) {
+        // Silence after speech
+        if (silenceSince === null) {
+          silenceSince = Date.now();
+        } else if (Date.now() - silenceSince >= SILENCE_DURATION_MS) {
+          // Silence threshold exceeded after speech - end this segment
+          logger.debug(
+            "Continuous: silence detected after speech, ending segment",
+            { silenceMs: Date.now() - silenceSince, rms },
+            "audio"
+          );
+
+          this._stopContinuousMonitor();
+          silenceSince = null;
+
+          // Stop the current MediaRecorder to trigger onstop -> processAudio
+          if (
+            this.continuousMediaRecorder &&
+            this.continuousMediaRecorder.state === "recording"
+          ) {
+            this.continuousMediaRecorder.stop();
+          }
+        }
+      }
+      // If no speech detected yet, just keep listening
+    }, 50); // Check every 50ms
+  }
+
+  _stopContinuousMonitor() {
+    if (this.continuousMonitorInterval) {
+      clearInterval(this.continuousMonitorInterval);
+      this.continuousMonitorInterval = null;
+    }
+  }
+
+  _cleanupContinuous() {
+    this._stopContinuousMonitor();
+
+    this.isContinuousMode = false;
+    this.isRecording = false;
+    this.isProcessing = false;
+    this.continuousSpeechDetected = false;
+    this.continuousSegmentStartTime = null;
+    this.continuousChunks = [];
+
+    if (this.continuousMediaRecorder) {
+      if (this.continuousMediaRecorder.state === "recording") {
+        this.continuousMediaRecorder.onstop = null;
+        try {
+          this.continuousMediaRecorder.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
+      this.continuousMediaRecorder = null;
+    }
+
+    if (this.continuousAudioContext && this.continuousAudioContext.state !== "closed") {
+      this.continuousAudioContext.close().catch(() => {});
+    }
+    this.continuousAudioContext = null;
+    this.continuousAnalyser = null;
+
+    if (this.continuousStream) {
+      this.continuousStream.getTracks().forEach((track) => track.stop());
+      this.continuousStream = null;
+    }
+
+    this.onStateChange?.({ isRecording: false, isProcessing: false });
+  }
+
+  // ── End Continuous Recording ──────────────────────────────────────
+
   getState() {
     return {
       isRecording: this.isRecording,
       isProcessing: this.isProcessing,
       isStreaming: this.isStreaming,
       isStreamingStartInProgress: this.streamingStartInProgress,
+      isContinuousMode: this.isContinuousMode,
     };
   }
 
@@ -2333,6 +2605,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   cleanup() {
+    if (this.isContinuousMode) {
+      this._cleanupContinuous();
+    }
     if (this.isStreaming) {
       this.cleanupStreaming();
     }

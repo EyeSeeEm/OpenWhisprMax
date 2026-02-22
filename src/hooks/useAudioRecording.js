@@ -9,6 +9,7 @@ export const useAudioRecording = (toast, options = {}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [partialTranscript, setPartialTranscript] = useState("");
   const audioManagerRef = useRef(null);
@@ -73,6 +74,7 @@ export const useAudioRecording = (toast, options = {}) => {
         setIsRecording(isRecording);
         setIsProcessing(isProcessing);
         setIsStreaming(isStreaming ?? false);
+        setIsContinuousMode(audioManagerRef.current?.isContinuousMode ?? false);
         if (!isStreaming) {
           setPartialTranscript("");
         }
@@ -151,6 +153,12 @@ export const useAudioRecording = (toast, options = {}) => {
       if (!audioManagerRef.current) return;
       const currentState = audioManagerRef.current.getState();
 
+      // If continuous mode is active, stop it via the regular toggle too
+      if (currentState.isContinuousMode) {
+        audioManagerRef.current.stopContinuousRecording();
+        return;
+      }
+
       if (!currentState.isRecording && !currentState.isProcessing) {
         await performStartRecording();
       } else if (currentState.isRecording) {
@@ -181,6 +189,24 @@ export const useAudioRecording = (toast, options = {}) => {
       onToggle?.();
     });
 
+    const handleToggleContinuous = async () => {
+      if (!audioManagerRef.current) return;
+      const currentState = audioManagerRef.current.getState();
+
+      if (currentState.isContinuousMode) {
+        // Currently in continuous mode - stop it
+        audioManagerRef.current.stopContinuousRecording();
+      } else if (!currentState.isRecording && !currentState.isProcessing) {
+        // Not recording - start continuous mode
+        await audioManagerRef.current.startContinuousRecording();
+      }
+    };
+
+    const disposeToggleContinuous = window.electronAPI.onToggleContinuousDictation?.(() => {
+      handleToggleContinuous();
+      onToggle?.();
+    });
+
     const handleNoAudioDetected = () => {
       toast({
         title: t("hooks.audioRecording.noAudio.title"),
@@ -196,6 +222,7 @@ export const useAudioRecording = (toast, options = {}) => {
       disposeToggle?.();
       disposeStart?.();
       disposeStop?.();
+      disposeToggleContinuous?.();
       disposeNoAudio?.();
       if (audioManagerRef.current) {
         audioManagerRef.current.cleanup();
@@ -245,6 +272,7 @@ export const useAudioRecording = (toast, options = {}) => {
     isRecording,
     isProcessing,
     isStreaming,
+    isContinuousMode,
     transcript,
     partialTranscript,
     startRecording,

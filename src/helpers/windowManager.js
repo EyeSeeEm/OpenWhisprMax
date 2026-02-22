@@ -186,8 +186,16 @@ class WindowManager {
       }
       lastToggleTime = now;
 
-      this.showDictationPanel();
-      this.mainWindow.webContents.send("toggle-dictation");
+      if (!this.mainWindow.isVisible()) {
+        this.mainWindow.show();
+      }
+
+      // Continuous mode uses a dedicated IPC event
+      if (activationMode === "continuous") {
+        this.mainWindow.webContents.send("toggle-continuous-dictation");
+      } else {
+        this.mainWindow.webContents.send("toggle-dictation");
+      }
     };
   }
 
@@ -385,7 +393,9 @@ class WindowManager {
   }
 
   setActivationModeCache(mode) {
-    this._cachedActivationMode = mode === "push" ? "push" : "tap";
+    if (mode === "push") this._cachedActivationMode = "push";
+    else if (mode === "continuous") this._cachedActivationMode = "continuous";
+    else this._cachedActivationMode = "tap";
   }
 
   setFloatingIconAutoHide(enabled) {
