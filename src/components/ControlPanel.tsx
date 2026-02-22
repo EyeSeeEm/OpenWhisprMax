@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import type { SettingsSectionType } from "./SettingsModal";
 import TitleBar from "./TitleBar";
-import SupportDropdown from "./ui/SupportDropdown";
 import TranscriptionItem from "./ui/TranscriptionItem";
 import UpgradePrompt from "./UpgradePrompt";
 import { ConfirmDialog, AlertDialog } from "./ui/dialog";
@@ -349,7 +348,6 @@ export default function ControlPanel() {
                   {getUpdateButtonContent()}
                 </Button>
               )}
-            <SupportDropdown />
             <Button
               variant="ghost"
               size="icon"
