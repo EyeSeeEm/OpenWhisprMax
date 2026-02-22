@@ -15,6 +15,7 @@ export const useAudioRecording = (toast, options = {}) => {
   const audioManagerRef = useRef(null);
   const startLockRef = useRef(false);
   const stopLockRef = useRef(false);
+  const continuousSegmentCountRef = useRef(0); // Track segments in continuous mode for spacing
   const { onToggle } = options;
 
   const performStartRecording = useCallback(async () => {
@@ -105,9 +106,20 @@ export const useAudioRecording = (toast, options = {}) => {
           setTranscript(result.text);
 
           const isStreaming = result.source?.includes("streaming");
+          const isContinuous = audioManagerRef.current?.isContinuousMode ?? false;
+
+          // In continuous mode, prepend space after the first segment
+          let textToPaste = result.text;
+          if (isContinuous) {
+            continuousSegmentCountRef.current += 1;
+            if (continuousSegmentCountRef.current > 1) {
+              textToPaste = " " + result.text;
+            }
+          }
+
           const pasteStart = performance.now();
           await audioManagerRef.current.safePaste(
-            result.text,
+            textToPaste,
             isStreaming ? { fromStreaming: true } : {}
           );
           logger.info(
@@ -199,6 +211,7 @@ export const useAudioRecording = (toast, options = {}) => {
         audioManagerRef.current.stopContinuousRecording();
       } else if (!currentState.isRecording && !currentState.isProcessing) {
         // Not recording - start continuous mode
+        continuousSegmentCountRef.current = 0; // Reset segment counter
         const didStart = await audioManagerRef.current.startContinuousRecording();
         if (didStart) {
           void playStartCue();
