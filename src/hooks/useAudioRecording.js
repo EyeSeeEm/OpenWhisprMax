@@ -234,6 +234,23 @@ export const useAudioRecording = (toast, options = {}) => {
 
     const disposeNoAudio = window.electronAPI.onNoAudioDetected?.(handleNoAudioDetected);
 
+    // Keyboard handlers for continuous mode (Enter to finish, ESC to cancel)
+    const handleKeyDown = (event) => {
+      if (!audioManagerRef.current?.isContinuousMode) return;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        void playStopCue();
+        audioManagerRef.current.finishContinuousRecording();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        void playStopCue();
+        audioManagerRef.current.cancelContinuousRecording();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
     // Cleanup
     return () => {
       disposeToggle?.();
@@ -241,6 +258,7 @@ export const useAudioRecording = (toast, options = {}) => {
       disposeStop?.();
       disposeToggleContinuous?.();
       disposeNoAudio?.();
+      window.removeEventListener("keydown", handleKeyDown);
       if (audioManagerRef.current) {
         audioManagerRef.current.cleanup();
       }

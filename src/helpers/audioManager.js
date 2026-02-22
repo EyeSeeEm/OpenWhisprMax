@@ -1831,6 +1831,51 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     return true;
   }
 
+  // Stop continuous recording and transcribe whatever was recorded (ENTER key)
+  finishContinuousRecording() {
+    if (!this.isContinuousMode) return false;
+
+    logger.info("Continuous recording finishing (transcribe + stop)", {}, "audio");
+
+    // Stop monitoring
+    this._stopContinuousMonitor();
+
+    // Always try to process current segment if we have any audio
+    if (
+      this.continuousMediaRecorder &&
+      this.continuousMediaRecorder.state === "recording"
+    ) {
+      // Force speech detected so onstop handler will process
+      this.continuousSpeechDetected = true;
+      this.continuousMediaRecorder.stop();
+    }
+
+    this._cleanupContinuous();
+    return true;
+  }
+
+  // Cancel continuous recording without transcribing (ESC key)
+  cancelContinuousRecording() {
+    if (!this.isContinuousMode) return false;
+
+    logger.info("Continuous recording cancelled", {}, "audio");
+
+    // Stop monitoring
+    this._stopContinuousMonitor();
+
+    // Stop recorder without processing
+    if (
+      this.continuousMediaRecorder &&
+      this.continuousMediaRecorder.state === "recording"
+    ) {
+      this.continuousMediaRecorder.onstop = null;
+      this.continuousMediaRecorder.stop();
+    }
+
+    this._cleanupContinuous();
+    return true;
+  }
+
   _startContinuousSegment() {
     if (!this.continuousStream || !this.isContinuousMode) return;
 
