@@ -443,6 +443,10 @@ class WindowManager {
         this.controlPanelWindow.restore();
       }
       if (!this.controlPanelWindow.isVisible()) {
+        // Show in taskbar again on Windows
+        if (process.platform === "win32") {
+          this.controlPanelWindow.setSkipTaskbar(false);
+        }
         this.controlPanelWindow.show();
       }
       this.controlPanelWindow.focus();
@@ -505,11 +509,8 @@ class WindowManager {
     this.controlPanelWindow.on("close", (event) => {
       if (!this.isQuitting) {
         event.preventDefault();
-        if (process.platform === "darwin") {
-          this.hideControlPanelToTray();
-        } else {
-          this.controlPanelWindow.minimize();
-        }
+        // Hide to tray on all platforms
+        this.hideControlPanelToTray();
       }
     });
 
@@ -574,6 +575,11 @@ class WindowManager {
     }
 
     this.controlPanelWindow.hide();
+
+    // Hide from taskbar on Windows
+    if (process.platform === "win32") {
+      this.controlPanelWindow.setSkipTaskbar(true);
+    }
 
     if (process.platform === "darwin" && app.dock) {
       app.dock.hide();
