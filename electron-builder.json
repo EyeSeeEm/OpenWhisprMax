@@ -1,6 +1,6 @@
 {
   "appId": "com.herotools.openwispr",
-  "productName": "OpenWhispr",
+  "productName": "OpenWhispr Max",
   "protocols": {
     "name": "OpenWhispr Protocol",
     "schemes": ["openwhispr"]

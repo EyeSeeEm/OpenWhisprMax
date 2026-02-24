@@ -1,7 +1,7 @@
 {
   "app": {
-    "name": "OpenWhispr",
-    "loading": "Loading OpenWhispr...",
+    "name": "OpenWhispr Max",
+    "loading": "Loading OpenWhispr Max...",
     "oauth": {
       "redirectTitle": "Redirecting to OpenWhispr",
       "closeTab": "You can close this tab"
@@ -59,12 +59,12 @@
       "hide": "Hide Dictation Panel"
     },
     "openControlPanel": "Open Control Panel",
-    "quit": "Quit OpenWhispr",
-    "tooltip": "OpenWhispr - Voice Dictation"
+    "quit": "Quit OpenWhispr Max",
+    "tooltip": "OpenWhispr Max - Voice Dictation"
   },
   "menu": {
-    "appLabel": "OpenWhispr",
-    "quit": "Quit OpenWhispr",
+    "appLabel": "OpenWhispr Max",
+    "quit": "Quit OpenWhispr Max",
     "speech": "Speech",
     "help": "Help",
     "learnMore": "Learn More",
