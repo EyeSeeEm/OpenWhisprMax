@@ -228,7 +228,7 @@ export const useAudioRecording = (toast, options = {}) => {
       onToggle?.();
     });
 
-    // Handle global ESC/ENTER shortcuts canceling continuous mode
+    // Handle global ESC shortcut - cancel continuous mode (no transcription)
     const handleCancelContinuous = () => {
       if (!audioManagerRef.current?.isContinuousMode) return;
       void playStopCue();
@@ -237,7 +237,17 @@ export const useAudioRecording = (toast, options = {}) => {
       audioManagerRef.current.cancelContinuousRecording();
     };
 
+    // Handle global ENTER shortcut - finish continuous mode (transcribe what was said)
+    const handleFinishContinuous = () => {
+      if (!audioManagerRef.current?.isContinuousMode) return;
+      void playStopCue();
+      // Unregister global shortcuts (ENTER already unregistered by main process)
+      window.electronAPI.unregisterContinuousShortcuts?.();
+      audioManagerRef.current.finishContinuousRecording();
+    };
+
     const disposeCancelContinuous = window.electronAPI.onCancelContinuousDictation?.(handleCancelContinuous);
+    const disposeFinishContinuous = window.electronAPI.onFinishContinuousDictation?.(handleFinishContinuous);
 
     const handleNoAudioDetected = () => {
       toast({
@@ -256,6 +266,7 @@ export const useAudioRecording = (toast, options = {}) => {
       disposeStop?.();
       disposeToggleContinuous?.();
       disposeCancelContinuous?.();
+      disposeFinishContinuous?.();
       disposeNoAudio?.();
       // Make sure global shortcuts are unregistered on cleanup
       window.electronAPI.unregisterContinuousShortcuts?.();

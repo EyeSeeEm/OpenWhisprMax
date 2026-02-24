@@ -96,21 +96,42 @@ class IPCHandlers {
       }
     });
 
-    // Continuous mode global shortcuts (ESC and ENTER to cancel)
+    // Continuous mode global shortcuts (ESC to cancel, ENTER to finish+passthrough)
     ipcMain.handle("register-continuous-shortcuts", () => {
       const mainWindow = this.windowManager?.mainWindow;
 
+      // ESC: Cancel continuous mode (no transcription)
       const cancelContinuous = () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          debugLogger.debug("Global shortcut pressed - canceling continuous mode", {}, "hotkey");
+          debugLogger.debug("ESC pressed - canceling continuous mode", {}, "hotkey");
           mainWindow.webContents.send("cancel-continuous-dictation");
         }
       };
 
-      // Register ESC to cancel continuous mode
+      // ENTER: Finish continuous mode (transcribe), then pass ENTER through
+      const finishContinuous = () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          debugLogger.debug("ENTER pressed - finishing continuous mode", {}, "hotkey");
+          mainWindow.webContents.send("finish-continuous-dictation");
+
+          // Unregister ENTER immediately so we can simulate it
+          globalShortcut.unregister("Return");
+
+          // Small delay to let the dictation finish, then simulate ENTER
+          setTimeout(() => {
+            const { exec } = require("child_process");
+            // Use PowerShell to send ENTER to the foreground window
+            exec('powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{ENTER}\')"',
+              (err) => {
+                if (err) debugLogger.debug("Failed to send ENTER key", { error: err.message }, "hotkey");
+              }
+            );
+          }, 100);
+        }
+      };
+
       const escRegistered = globalShortcut.register("Escape", cancelContinuous);
-      // Register ENTER to cancel continuous mode (same behavior)
-      const enterRegistered = globalShortcut.register("Return", cancelContinuous);
+      const enterRegistered = globalShortcut.register("Return", finishContinuous);
 
       debugLogger.debug("Registered continuous mode shortcuts", {
         escRegistered,
