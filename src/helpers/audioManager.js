@@ -1928,6 +1928,14 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         this._startContinuousMonitor();
       }
 
+      // Skip processing if audio is too small (less than ~0.3 seconds of audio)
+      // This prevents errors when ENTER is pressed with no meaningful audio
+      const MIN_AUDIO_SIZE = 5000; // ~5KB minimum
+      if (audioBlob.size < MIN_AUDIO_SIZE) {
+        logger.info("Skipping tiny audio segment", { size: audioBlob.size }, "audio");
+        return;
+      }
+
       // Process this segment's audio in the background
       await this.processAudio(audioBlob, { durationSeconds });
     };
