@@ -12,6 +12,7 @@ export const useAudioRecording = (toast, options = {}) => {
   const [isContinuousMode, setIsContinuousMode] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [partialTranscript, setPartialTranscript] = useState("");
+  const [audioLevel, setAudioLevel] = useState(0);
   const audioManagerRef = useRef(null);
   const startLockRef = useRef(false);
   const stopLockRef = useRef(false);
@@ -79,6 +80,10 @@ export const useAudioRecording = (toast, options = {}) => {
         if (!isStreaming) {
           setPartialTranscript("");
         }
+        // Reset audio level when not recording
+        if (!isRecording) {
+          setAudioLevel(0);
+        }
       },
       onError: (error) => {
         // Provide specific titles for cloud error codes
@@ -100,6 +105,9 @@ export const useAudioRecording = (toast, options = {}) => {
       },
       onPartialTranscript: (text) => {
         setPartialTranscript(text);
+      },
+      onAudioLevel: (level) => {
+        setAudioLevel(level);
       },
       onTranscriptionComplete: async (result) => {
         if (result.success) {
@@ -321,6 +329,7 @@ export const useAudioRecording = (toast, options = {}) => {
     isContinuousMode,
     transcript,
     partialTranscript,
+    audioLevel,
     startRecording,
     stopRecording,
     cancelRecording,

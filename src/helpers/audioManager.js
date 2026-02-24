@@ -32,6 +32,13 @@ class AudioManager {
     this.onError = null;
     this.onTranscriptionComplete = null;
     this.onPartialTranscript = null;
+    this.onAudioLevel = null; // Callback for audio level updates (0-1)
+
+    // Audio level monitoring
+    this.levelAudioContext = null;
+    this.levelAnalyser = null;
+    this.levelMonitorInterval = null;
+
     this.cachedApiKey = null;
     this.cachedApiKeyProvider = null;
 
@@ -242,11 +249,17 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.recordingStartTime = Date.now();
       this.recordingMimeType = this.mediaRecorder.mimeType || "audio/webm";
 
+      // Set up audio level monitoring
+      this._startLevelMonitoring(stream);
+
       this.mediaRecorder.ondataavailable = (event) => {
         this.audioChunks.push(event.data);
       };
 
       this.mediaRecorder.onstop = async () => {
+        // Stop audio level monitoring
+        this._stopLevelMonitoring();
+
         this.isRecording = false;
         this.isProcessing = true;
         this.onStateChange?.({ isRecording: false, isProcessing: true });
@@ -1874,6 +1887,56 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
     this._cleanupContinuous();
     return true;
+  }
+
+  // Audio level monitoring for voice-reactive UI
+  _startLevelMonitoring(stream) {
+    try {
+      this.levelAudioContext = new AudioContext();
+      this.levelAnalyser = this.levelAudioContext.createAnalyser();
+      this.levelAnalyser.fftSize = 256;
+
+      const source = this.levelAudioContext.createMediaStreamSource(stream);
+      source.connect(this.levelAnalyser);
+
+      const dataArray = new Uint8Array(this.levelAnalyser.frequencyBinCount);
+
+      this.levelMonitorInterval = setInterval(() => {
+        if (!this.levelAnalyser) return;
+
+        this.levelAnalyser.getByteFrequencyData(dataArray);
+
+        // Calculate RMS (root mean square) for a more accurate level
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i] * dataArray[i];
+        }
+        const rms = Math.sqrt(sum / dataArray.length);
+
+        // Normalize to 0-1 range (255 is max byte value)
+        const level = Math.min(1, rms / 128);
+
+        this.onAudioLevel?.(level);
+      }, 50); // Update every 50ms for smooth animation
+    } catch (error) {
+      logger.debug("Failed to start level monitoring", { error: error.message }, "audio");
+    }
+  }
+
+  _stopLevelMonitoring() {
+    if (this.levelMonitorInterval) {
+      clearInterval(this.levelMonitorInterval);
+      this.levelMonitorInterval = null;
+    }
+
+    if (this.levelAudioContext && this.levelAudioContext.state !== "closed") {
+      this.levelAudioContext.close().catch(() => {});
+    }
+    this.levelAudioContext = null;
+    this.levelAnalyser = null;
+
+    // Send zero level when stopping
+    this.onAudioLevel?.(0);
   }
 
   _startContinuousSegment() {

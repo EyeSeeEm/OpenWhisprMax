@@ -4,6 +4,7 @@ import "./index.css";
 import { X } from "lucide-react";
 import { useToast } from "./components/ui/Toast";
 import { LoadingDots } from "./components/ui/LoadingDots";
+import { VoiceReactiveIndicator } from "./components/ui/VoiceReactiveIndicator";
 import { useHotkey } from "./hooks/useHotkey";
 import { useWindowDrag } from "./hooks/useWindowDrag";
 import { useAudioRecording } from "./hooks/useAudioRecording";
@@ -156,6 +157,7 @@ export default function App() {
     cancelRecording,
     cancelProcessing,
     warmupStreaming,
+    audioLevel,
   } = useAudioRecording(toast, {
     onToggle: handleDictationToggle,
   });
@@ -380,7 +382,7 @@ export default function App() {
               {micState === "idle" || micState === "hover" ? (
                 <SoundWaveIcon size={micState === "idle" ? 12 : 14} />
               ) : micState === "recording" ? (
-                <LoadingDots />
+                <VoiceReactiveIndicator audioLevel={audioLevel} />
               ) : micState === "processing" ? (
                 <VoiceWaveIndicator isListening={true} />
               ) : null}
