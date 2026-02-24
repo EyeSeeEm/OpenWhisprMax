@@ -481,9 +481,9 @@ async function startApp() {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  // Create windows FIRST so the user sees UI as soon as possible
+  // Create windows - control panel starts hidden in tray
   await windowManager.createMainWindow();
-  await windowManager.createControlPanelWindow();
+  await windowManager.createControlPanelWindow({ startHidden: true });
 
   // Phase 2: Initialize remaining managers after windows are visible
   initializeDeferredManagers();

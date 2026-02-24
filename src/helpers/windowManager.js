@@ -437,8 +437,11 @@ class WindowManager {
     });
   }
 
-  async createControlPanelWindow() {
+  async createControlPanelWindow(options = {}) {
+    const { startHidden = false } = options;
+
     if (this.controlPanelWindow && !this.controlPanelWindow.isDestroyed()) {
+      if (startHidden) return; // Already exists, don't show if startHidden
       if (this.controlPanelWindow.isMinimized()) {
         this.controlPanelWindow.restore();
       }
@@ -452,6 +455,8 @@ class WindowManager {
       this.controlPanelWindow.focus();
       return;
     }
+
+    this._startHidden = startHidden;
 
     this.controlPanelWindow = new BrowserWindow(CONTROL_PANEL_CONFIG);
 
@@ -499,6 +504,12 @@ class WindowManager {
 
     this.controlPanelWindow.once("ready-to-show", () => {
       clearVisibilityTimer();
+      if (this._startHidden) {
+        // Start minimized to tray
+        this.hideControlPanelToTray();
+        this._startHidden = false;
+        return;
+      }
       if (process.platform === "darwin" && app.dock) {
         app.dock.show();
       }
