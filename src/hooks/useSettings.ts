@@ -85,10 +85,9 @@ function migratePreferredLanguage() {
 function useSettingsInternal() {
   migratePreferredLanguage();
 
-  // OWM defaults to local whisper (privacy-first)
-  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", true, {
+  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", false, {
     serialize: String,
-    deserialize: (value) => value !== "false",
+    deserialize: (value) => value === "true",
   });
 
   const [whisperModel, setWhisperModel] = useLocalStorage("whisperModel", "base", {
@@ -235,20 +234,18 @@ function useSettingsInternal() {
     }
   );
 
-  // OWM defaults to BYOK mode (no OpenWhispr Cloud dependency)
   const [cloudTranscriptionMode, setCloudTranscriptionMode] = useLocalStorage(
     "cloudTranscriptionMode",
-    "byok",
+    hasStoredByokKey() ? "byok" : "openwhispr",
     {
       serialize: String,
       deserialize: String,
     }
   );
 
-  // OWM defaults to BYOK mode for reasoning too
   const [cloudReasoningMode, setCloudReasoningMode] = useLocalStorage(
     "cloudReasoningMode",
-    "byok",
+    "openwhispr",
     {
       serialize: String,
       deserialize: String,
@@ -330,10 +327,10 @@ function useSettingsInternal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reasoning settings - OWM defaults to OFF (user must explicitly enable)
-  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", false, {
+  // Reasoning settings
+  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", true, {
     serialize: String,
-    deserialize: (value) => value === "true", // Default false
+    deserialize: (value) => value !== "false", // Default true
   });
 
   const [reasoningModel, setReasoningModel] = useLocalStorage("reasoningModel", "", {

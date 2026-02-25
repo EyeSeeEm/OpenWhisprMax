@@ -1,7 +1,7 @@
 {
-  "name": "openwhispr-max",
-  "version": "2.0.0",
-  "description": "OpenWhispr Max - Enhanced desktop dictation with continuous mode",
+  "name": "open-whispr",
+  "version": "1.4.11",
+  "description": "A desktop dictation application using whisper.cpp for speech-to-text transcription",
   "main": "main.js",
   "private": true,
   "scripts": {
@@ -61,8 +61,8 @@
     "desktop-app"
   ],
   "author": {
-    "name": "Max Dohme",
-    "email": "max@eyeseeicm.com"
+    "name": "OpenWhispr Team",
+    "email": "support@openwhispr.com"
   },
   "license": "MIT",
   "devDependencies": {
