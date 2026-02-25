@@ -59,13 +59,13 @@ class DebugLogger {
   }
 
   initializeFileLogging() {
-    debugToFile("[DebugLogger] initializeFileLogging called, fileLoggingEnabled:", this.fileLoggingEnabled);
+    debugToFile(`initializeFileLogging called, fileLoggingEnabled: ${this.fileLoggingEnabled}`);
     if (this.fileLoggingEnabled) return;
 
     // Check if app is ready before accessing app.getPath()
     // This is critical because app.getPath() can hang or fail before app.whenReady()
     const appReady = app.isReady();
-    debugToFile("[DebugLogger] app.isReady():", appReady);
+    debugToFile(`app.isReady(): ${appReady}`);
     if (!appReady) {
       // App not ready yet, will try again later via ensureFileLogging() or write()
       return;
@@ -74,22 +74,22 @@ class DebugLogger {
     try {
       const userData = app.getPath("userData");
       const logsDir = path.join(userData, "logs");
-      debugToFile("[DebugLogger] Creating logs dir:", logsDir);
+      debugToFile(`Creating logs dir: ${logsDir}`);
 
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
-        debugToFile("[DebugLogger] Created logs dir");
+        debugToFile("Created logs dir");
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.logFile = path.join(logsDir, `debug-${timestamp}.log`);
-      debugToFile("[DebugLogger] Log file:", this.logFile);
+      debugToFile(`Log file: ${this.logFile}`);
 
       this.logStream = fs.createWriteStream(this.logFile, { flags: "a" });
       this.fileLoggingEnabled = true;
       this.fileLoggingPending = false;
 
-      debugToFile("[DebugLogger] File logging initialized successfully");
+      debugToFile("File logging initialized successfully");
       this.debug("Debug logging enabled", { logFile: this.logFile });
       this.info("System Info", {
         platform: process.platform,
@@ -112,7 +112,7 @@ class DebugLogger {
    * This should be called after app.whenReady() to safely initialize file logging.
    */
   ensureFileLogging() {
-    debugToFile("[DebugLogger] ensureFileLogging called, pending:", this.fileLoggingPending, "enabled:", this.fileLoggingEnabled);
+    debugToFile(`ensureFileLogging called, pending: ${this.fileLoggingPending}, enabled: ${this.fileLoggingEnabled}`);
     if (this.fileLoggingPending && !this.fileLoggingEnabled) {
       this.initializeFileLogging();
     }
