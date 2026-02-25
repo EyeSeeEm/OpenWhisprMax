@@ -48,42 +48,51 @@ class DebugLogger {
   }
 
   initializeFileLogging() {
+    console.log("[DebugLogger] initializeFileLogging called, fileLoggingEnabled:", this.fileLoggingEnabled);
     if (this.fileLoggingEnabled) return;
 
     // Check if app is ready before accessing app.getPath()
     // This is critical because app.getPath() can hang or fail before app.whenReady()
-    if (!app.isReady()) {
+    const appReady = app.isReady();
+    console.log("[DebugLogger] app.isReady():", appReady);
+    if (!appReady) {
       // App not ready yet, will try again later via ensureFileLogging() or write()
       return;
     }
 
     try {
-      const logsDir = path.join(app.getPath("userData"), "logs");
+      const userData = app.getPath("userData");
+      const logsDir = path.join(userData, "logs");
+      console.log("[DebugLogger] Creating logs dir:", logsDir);
+
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
+        console.log("[DebugLogger] Created logs dir");
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.logFile = path.join(logsDir, `debug-${timestamp}.log`);
+      console.log("[DebugLogger] Log file:", this.logFile);
 
       this.logStream = fs.createWriteStream(this.logFile, { flags: "a" });
       this.fileLoggingEnabled = true;
       this.fileLoggingPending = false;
 
+      console.log("[DebugLogger] File logging initialized successfully");
       this.debug("Debug logging enabled", { logFile: this.logFile });
       this.info("System Info", {
         platform: process.platform,
         nodeVersion: process.version,
         electronVersion: process.versions.electron,
         appPath: app.getAppPath(),
-        userDataPath: app.getPath("userData"),
+        userDataPath: userData,
         resourcesPath: process.resourcesPath,
         environment: process.env.NODE_ENV,
       });
     } catch (error) {
       this.fileLoggingEnabled = false;
       this.fileLoggingPending = false;
-      console.error("Failed to initialize debug logging:", error);
+      console.error("[DebugLogger] Failed to initialize debug logging:", error);
     }
   }
 
@@ -92,6 +101,7 @@ class DebugLogger {
    * This should be called after app.whenReady() to safely initialize file logging.
    */
   ensureFileLogging() {
+    console.log("[DebugLogger] ensureFileLogging called, pending:", this.fileLoggingPending, "enabled:", this.fileLoggingEnabled);
     if (this.fileLoggingPending && !this.fileLoggingEnabled) {
       this.initializeFileLogging();
     }
