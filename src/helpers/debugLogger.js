@@ -2,6 +2,17 @@ const fs = require("fs");
 const path = require("path");
 const { app } = require("electron");
 
+// Debug helper to write to DEBUG_LOG.txt in app directory
+const debugToFile = (msg) => {
+  try {
+    const logPath = path.join(__dirname, "..", "..", "DEBUG_LOG.txt");
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logPath, `[${timestamp}] [DebugLogger] ${msg}\n`);
+  } catch (e) {
+    // Ignore errors
+  }
+};
+
 const LOG_LEVELS = {
   trace: 10,
   debug: 20,
@@ -48,13 +59,13 @@ class DebugLogger {
   }
 
   initializeFileLogging() {
-    console.log("[DebugLogger] initializeFileLogging called, fileLoggingEnabled:", this.fileLoggingEnabled);
+    debugToFile("[DebugLogger] initializeFileLogging called, fileLoggingEnabled:", this.fileLoggingEnabled);
     if (this.fileLoggingEnabled) return;
 
     // Check if app is ready before accessing app.getPath()
     // This is critical because app.getPath() can hang or fail before app.whenReady()
     const appReady = app.isReady();
-    console.log("[DebugLogger] app.isReady():", appReady);
+    debugToFile("[DebugLogger] app.isReady():", appReady);
     if (!appReady) {
       // App not ready yet, will try again later via ensureFileLogging() or write()
       return;
@@ -63,22 +74,22 @@ class DebugLogger {
     try {
       const userData = app.getPath("userData");
       const logsDir = path.join(userData, "logs");
-      console.log("[DebugLogger] Creating logs dir:", logsDir);
+      debugToFile("[DebugLogger] Creating logs dir:", logsDir);
 
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
-        console.log("[DebugLogger] Created logs dir");
+        debugToFile("[DebugLogger] Created logs dir");
       }
 
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       this.logFile = path.join(logsDir, `debug-${timestamp}.log`);
-      console.log("[DebugLogger] Log file:", this.logFile);
+      debugToFile("[DebugLogger] Log file:", this.logFile);
 
       this.logStream = fs.createWriteStream(this.logFile, { flags: "a" });
       this.fileLoggingEnabled = true;
       this.fileLoggingPending = false;
 
-      console.log("[DebugLogger] File logging initialized successfully");
+      debugToFile("[DebugLogger] File logging initialized successfully");
       this.debug("Debug logging enabled", { logFile: this.logFile });
       this.info("System Info", {
         platform: process.platform,
@@ -92,7 +103,7 @@ class DebugLogger {
     } catch (error) {
       this.fileLoggingEnabled = false;
       this.fileLoggingPending = false;
-      console.error("[DebugLogger] Failed to initialize debug logging:", error);
+      debugToFile("[DebugLogger] Failed to initialize: " + error.message);
     }
   }
 
@@ -101,7 +112,7 @@ class DebugLogger {
    * This should be called after app.whenReady() to safely initialize file logging.
    */
   ensureFileLogging() {
-    console.log("[DebugLogger] ensureFileLogging called, pending:", this.fileLoggingPending, "enabled:", this.fileLoggingEnabled);
+    debugToFile("[DebugLogger] ensureFileLogging called, pending:", this.fileLoggingPending, "enabled:", this.fileLoggingEnabled);
     if (this.fileLoggingPending && !this.fileLoggingEnabled) {
       this.initializeFileLogging();
     }
