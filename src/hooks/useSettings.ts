@@ -657,14 +657,23 @@ function useSettingsInternal() {
     if (typeof window === "undefined" || !window.electronAPI?.syncStartupPreferences) return;
 
     const model = localTranscriptionProvider === "nvidia" ? parakeetModel : whisperModel;
+    const prefs = {
+      useLocalWhisper,
+      localTranscriptionProvider,
+      model: model || undefined,
+      reasoningProvider,
+      reasoningModel: reasoningProvider === "local" ? reasoningModel : undefined,
+    };
+
+    // OWM DEBUG: Log what we're syncing
+    logger.debug(
+      "Syncing startup preferences to main process",
+      prefs,
+      "settings"
+    );
+
     window.electronAPI
-      .syncStartupPreferences({
-        useLocalWhisper,
-        localTranscriptionProvider,
-        model: model || undefined,
-        reasoningProvider,
-        reasoningModel: reasoningProvider === "local" ? reasoningModel : undefined,
-      })
+      .syncStartupPreferences(prefs)
       .catch((err) =>
         logger.warn(
           "Failed to sync startup preferences",

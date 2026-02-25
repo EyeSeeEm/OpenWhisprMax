@@ -912,9 +912,16 @@ class IPCHandlers {
       const setVars = {};
       const clearVars = [];
 
+      // OWM CHANGE: Log incoming preferences for debugging
+      debugLogger.debug("sync-startup-preferences received", {
+        useLocalWhisper: prefs.useLocalWhisper,
+        localTranscriptionProvider: prefs.localTranscriptionProvider,
+        model: prefs.model,
+      });
+
       if (prefs.useLocalWhisper && prefs.model) {
         // Local mode with model selected - set provider and model for pre-warming
-        setVars.LOCAL_TRANSCRIPTION_PROVIDER = prefs.localTranscriptionProvider;
+        setVars.LOCAL_TRANSCRIPTION_PROVIDER = prefs.localTranscriptionProvider || "whisper";
         if (prefs.localTranscriptionProvider === "nvidia") {
           setVars.PARAKEET_MODEL = prefs.model;
           clearVars.push("LOCAL_WHISPER_MODEL");
@@ -923,12 +930,14 @@ class IPCHandlers {
           clearVars.push("PARAKEET_MODEL");
         }
       } else if (prefs.useLocalWhisper) {
-        // Local mode enabled but no model selected - clear pre-warming vars
-        clearVars.push("LOCAL_TRANSCRIPTION_PROVIDER", "PARAKEET_MODEL", "LOCAL_WHISPER_MODEL");
-      } else {
-        // Cloud mode - clear all local transcription vars
+        // Local mode enabled but no model selected - DON'T clear vars, keep existing .env settings
+        // OWM CHANGE: Don't clear env vars, let .env file settings persist
+        debugLogger.debug("Local mode without model - preserving existing env vars");
+      } else if (prefs.useLocalWhisper === false) {
+        // Explicitly set to cloud mode - clear local transcription vars
         clearVars.push("LOCAL_TRANSCRIPTION_PROVIDER", "PARAKEET_MODEL", "LOCAL_WHISPER_MODEL");
       }
+      // OWM CHANGE: If useLocalWhisper is undefined/null, don't touch env vars at all
 
       if (prefs.reasoningProvider === "local" && prefs.reasoningModel) {
         setVars.REASONING_PROVIDER = "local";

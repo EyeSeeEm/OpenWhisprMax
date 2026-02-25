@@ -345,21 +345,51 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
-      const useLocalWhisper = localStorage.getItem("useLocalWhisper") !== "false";
-      const localProvider = localStorage.getItem("localTranscriptionProvider") || "whisper";
+      // Read raw localStorage values for debugging
+      const rawUseLocalWhisper = localStorage.getItem("useLocalWhisper");
+      const rawCloudMode = localStorage.getItem("cloudTranscriptionMode");
+      const rawIsSignedIn = localStorage.getItem("isSignedIn");
+      const rawLocalProvider = localStorage.getItem("localTranscriptionProvider");
+
+      // OWM CHANGE: Default to local whisper (true) unless explicitly set to "false"
+      // This ensures privacy-first local transcription by default
+      const useLocalWhisper = rawUseLocalWhisper !== "false";
+      const localProvider = rawLocalProvider || "whisper";
       const whisperModel = localStorage.getItem("whisperModel") || "base";
       const parakeetModel = localStorage.getItem("parakeetModel") || "parakeet-tdt-0.6b-v3";
 
       const cloudTranscriptionMode =
         localStorage.getItem("cloudTranscriptionMode") ||
         (hasStoredByokKey() ? "byok" : "openwhispr");
-      const isSignedIn = localStorage.getItem("isSignedIn") === "true";
+      const isSignedIn = rawIsSignedIn === "true";
 
       const isOpenWhisprCloudMode = !useLocalWhisper && cloudTranscriptionMode === "openwhispr";
       const useCloud = isOpenWhisprCloudMode && isSignedIn;
+
+      // Detailed debug logging for transcription routing
       logger.debug(
-        "Transcription routing",
-        { useLocalWhisper, useCloud, isSignedIn, cloudTranscriptionMode, isContinuous },
+        "Transcription routing - raw localStorage",
+        {
+          rawUseLocalWhisper,
+          rawCloudMode,
+          rawIsSignedIn,
+          rawLocalProvider,
+        },
+        "transcription"
+      );
+      logger.debug(
+        "Transcription routing - computed values",
+        {
+          useLocalWhisper,
+          localProvider,
+          whisperModel,
+          cloudTranscriptionMode,
+          isSignedIn,
+          isOpenWhisprCloudMode,
+          useCloud,
+          decision: useLocalWhisper ? `LOCAL-${localProvider}` : (isOpenWhisprCloudMode ? "OPENWHISPR-CLOUD" : "BYOK/OPENAI"),
+          isContinuous,
+        },
         "transcription"
       );
 
