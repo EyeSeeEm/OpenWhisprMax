@@ -15,7 +15,8 @@ const normalizeLevel = (value?: string | null): LogLevel | null => {
   return lower in LOG_LEVELS ? (lower as LogLevel) : null;
 };
 
-const defaultLevel: LogLevel = "info";
+// OWM CHANGE: Default to debug level so logs are ALWAYS captured
+const defaultLevel: LogLevel = "debug";
 
 let cachedLevel: LogLevel | null = null;
 let levelPromise: Promise<LogLevel> | null = null;

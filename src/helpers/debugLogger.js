@@ -39,7 +39,8 @@ class DebugLogger {
     this.logFile = null;
     this.logStream = null;
     this.fileLoggingEnabled = false;
-    this.fileLoggingPending = this.debugMode; // Track if we need to initialize file logging later
+    // OWM CHANGE: Always enable file logging so we have diagnostic data
+    this.fileLoggingPending = true;
 
     // IMPORTANT: Do NOT call initializeFileLogging() here!
     // It uses app.getPath() which is unsafe before app.whenReady().
@@ -107,7 +108,9 @@ class DebugLogger {
       return envLevel;
     }
 
-    return "info";
+    // OWM CHANGE: Default to debug level so logs are ALWAYS captured
+    // This ensures we always have diagnostic data when bugs occur
+    return "debug";
   }
 
   refreshLogLevel() {
