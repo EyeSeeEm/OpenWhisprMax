@@ -85,9 +85,10 @@ function migratePreferredLanguage() {
 function useSettingsInternal() {
   migratePreferredLanguage();
 
-  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", false, {
+  // OWM defaults to local whisper (privacy-first)
+  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", true, {
     serialize: String,
-    deserialize: (value) => value === "true",
+    deserialize: (value) => value !== "false",
   });
 
   const [whisperModel, setWhisperModel] = useLocalStorage("whisperModel", "base", {
@@ -234,18 +235,20 @@ function useSettingsInternal() {
     }
   );
 
+  // OWM defaults to BYOK mode (no OpenWhispr Cloud dependency)
   const [cloudTranscriptionMode, setCloudTranscriptionMode] = useLocalStorage(
     "cloudTranscriptionMode",
-    hasStoredByokKey() ? "byok" : "openwhispr",
+    "byok",
     {
       serialize: String,
       deserialize: String,
     }
   );
 
+  // OWM defaults to BYOK mode for reasoning too
   const [cloudReasoningMode, setCloudReasoningMode] = useLocalStorage(
     "cloudReasoningMode",
-    "openwhispr",
+    "byok",
     {
       serialize: String,
       deserialize: String,
