@@ -327,10 +327,10 @@ function useSettingsInternal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reasoning settings
-  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", true, {
+  // Reasoning settings - OWM defaults to OFF (user must explicitly enable)
+  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", false, {
     serialize: String,
-    deserialize: (value) => value !== "false", // Default true
+    deserialize: (value) => value === "true", // Default false
   });
 
   const [reasoningModel, setReasoningModel] = useLocalStorage("reasoningModel", "", {

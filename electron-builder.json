@@ -1,5 +1,5 @@
 {
-  "appId": "com.herotools.openwispr",
+  "appId": "com.eyeseeicm.openwhispr-max",
   "productName": "OpenWhispr Max",
   "protocols": {
     "name": "OpenWhispr Protocol",
@@ -184,7 +184,7 @@
     "include": "resources/nsis/cleanup-models.nsh"
   },
   "dmg": {
-    "title": "OpenWhispr",
+    "title": "OpenWhispr Max",
     "icon": "src/assets/icon.icns",
     "window": {
       "width": 540,
@@ -193,8 +193,8 @@
   },
   "publish": {
     "provider": "github",
-    "owner": "OpenWhispr",
-    "repo": "openwhispr",
+    "owner": "EyeSeeEm",
+    "repo": "OpenWhisprMax",
     "private": false,
     "releaseType": "draft"
   }
