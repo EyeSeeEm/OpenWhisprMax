@@ -359,6 +359,19 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
+      // OWM MIGRATION: Ensure local whisper default for users migrating from original OpenWhispr
+      // Original OpenWhispr defaulted to cloud mode, but OWM defaults to local for privacy.
+      // This runs here as a backup in case useSettings hook hasn't run yet (main window timing).
+      const migrationKey = "owm_migrated_local_default_v1";
+      if (!localStorage.getItem(migrationKey)) {
+        const currentValue = localStorage.getItem("useLocalWhisper");
+        if (currentValue === "false") {
+          logger.info("OWM Migration: Setting useLocalWhisper to 'true' (local-first default)", {}, "transcription");
+          localStorage.setItem("useLocalWhisper", "true");
+        }
+        localStorage.setItem(migrationKey, "true");
+      }
+
       // Read raw localStorage values for debugging
       const rawUseLocalWhisper = localStorage.getItem("useLocalWhisper");
       const rawCloudMode = localStorage.getItem("cloudTranscriptionMode");
