@@ -134,7 +134,10 @@ export const useAudioRecording = (toast, options = {}) => {
 
           audioManagerRef.current.saveTranscription(result.text);
 
-          if (result.source === "openai" && localStorage.getItem("useLocalWhisper") === "true") {
+          // OWM defaults to local mode - show fallback toast if result came from OpenAI
+          const localStored = localStorage.getItem("useLocalWhisper");
+          const isLocalMode = localStored === null ? true : localStored !== "false";
+          if (result.source === "openai" && isLocalMode) {
             toast({
               title: t("hooks.audioRecording.fallback.title"),
               description: t("hooks.audioRecording.fallback.description"),

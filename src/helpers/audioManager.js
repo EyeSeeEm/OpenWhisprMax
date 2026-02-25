@@ -345,14 +345,15 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
-      const useLocalWhisper = localStorage.getItem("useLocalWhisper") === "true";
+      // OWM defaults: local whisper ON, BYOK mode (not OpenWhispr Cloud)
+      const useLocalWhisperStored = localStorage.getItem("useLocalWhisper");
+      const useLocalWhisper = useLocalWhisperStored === null ? true : useLocalWhisperStored !== "false";
       const localProvider = localStorage.getItem("localTranscriptionProvider") || "whisper";
       const whisperModel = localStorage.getItem("whisperModel") || "base";
       const parakeetModel = localStorage.getItem("parakeetModel") || "parakeet-tdt-0.6b-v3";
 
-      const cloudTranscriptionMode =
-        localStorage.getItem("cloudTranscriptionMode") ||
-        (hasStoredByokKey() ? "byok" : "openwhispr");
+      // OWM defaults to BYOK, not openwhispr cloud
+      const cloudTranscriptionMode = localStorage.getItem("cloudTranscriptionMode") || "byok";
       const isSignedIn = localStorage.getItem("isSignedIn") === "true";
 
       const isOpenWhisprCloudMode = !useLocalWhisper && cloudTranscriptionMode === "openwhispr";
@@ -512,7 +513,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       }
 
       const allowOpenAIFallback = localStorage.getItem("allowOpenAIFallback") === "true";
-      const isLocalMode = localStorage.getItem("useLocalWhisper") === "true";
+      // OWM defaults to local mode
+      const localModeStored = localStorage.getItem("useLocalWhisper");
+      const isLocalMode = localModeStored === null ? true : localModeStored !== "false";
 
       if (allowOpenAIFallback && isLocalMode) {
         try {
@@ -586,7 +589,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       }
 
       const allowOpenAIFallback = localStorage.getItem("allowOpenAIFallback") === "true";
-      const isLocalMode = localStorage.getItem("useLocalWhisper") === "true";
+      // OWM defaults to local mode
+      const localModeStored = localStorage.getItem("useLocalWhisper");
+      const isLocalMode = localModeStored === null ? true : localModeStored !== "false";
 
       if (allowOpenAIFallback && isLocalMode) {
         try {
@@ -1508,7 +1513,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         );
       }
     } catch (error) {
-      const isOpenAIMode = localStorage.getItem("useLocalWhisper") !== "true";
+      // OWM defaults to local mode, so OpenAI mode is only when explicitly set to false
+      const localStored = localStorage.getItem("useLocalWhisper");
+      const isOpenAIMode = localStored === "false";
 
       if (allowLocalFallback && isOpenAIMode) {
         try {
@@ -2059,11 +2066,12 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   shouldUseStreaming(isSignedInOverride) {
-    const cloudTranscriptionMode =
-      localStorage.getItem("cloudTranscriptionMode") ||
-      (hasStoredByokKey() ? "byok" : "openwhispr");
+    // OWM defaults to BYOK mode
+    const cloudTranscriptionMode = localStorage.getItem("cloudTranscriptionMode") || "byok";
     const isSignedIn = isSignedInOverride ?? localStorage.getItem("isSignedIn") === "true";
-    const useLocalWhisper = localStorage.getItem("useLocalWhisper") === "true";
+    // OWM defaults to local whisper
+    const localStored = localStorage.getItem("useLocalWhisper");
+    const useLocalWhisper = localStored === null ? true : localStored !== "false";
     const streamingDisabled = localStorage.getItem("deepgramStreaming") === "false";
 
     return (
