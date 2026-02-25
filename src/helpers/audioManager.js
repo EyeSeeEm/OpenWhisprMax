@@ -345,7 +345,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
-      const useLocalWhisper = localStorage.getItem("useLocalWhisper") === "true";
+      const useLocalWhisper = localStorage.getItem("useLocalWhisper") !== "false";
       const localProvider = localStorage.getItem("localTranscriptionProvider") || "whisper";
       const whisperModel = localStorage.getItem("whisperModel") || "base";
       const parakeetModel = localStorage.getItem("parakeetModel") || "parakeet-tdt-0.6b-v3";
