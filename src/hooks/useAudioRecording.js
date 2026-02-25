@@ -114,7 +114,10 @@ export const useAudioRecording = (toast, options = {}) => {
           setTranscript(result.text);
 
           const isStreaming = result.source?.includes("streaming");
-          const isContinuous = audioManagerRef.current?.isContinuousMode ?? false;
+          // OWM FIX: Read isContinuous from result (captured at processAudio start)
+          // instead of live state, to avoid race condition where _cleanupContinuous
+          // sets isContinuousMode=false before this callback fires
+          const isContinuous = result.isContinuous ?? false;
 
           // In continuous mode, prepend space after the first segment
           let textToPaste = result.text;
@@ -310,10 +313,37 @@ export const useAudioRecording = (toast, options = {}) => {
     return false;
   };
 
+  // OWM FIX: toggleListening now respects activation mode setting and handles
+  // continuous mode properly. Previously it always used tap mode regardless of setting.
   const toggleListening = async () => {
-    if (!isRecording && !isProcessing) {
-      await startRecording();
-    } else if (isRecording) {
+    if (!audioManagerRef.current) return;
+    const currentState = audioManagerRef.current.getState();
+
+    // If already in continuous mode, stop it properly
+    if (currentState.isContinuousMode) {
+      void playStopCue();
+      window.electronAPI?.unregisterContinuousShortcuts?.();
+      audioManagerRef.current.stopContinuousRecording();
+      return;
+    }
+
+    // Check activation mode setting to decide which recording type to start
+    const activationMode = localStorage.getItem("activationMode") || "tap";
+
+    if (!currentState.isRecording && !currentState.isProcessing) {
+      if (activationMode === "continuous") {
+        // Start continuous mode (same logic as handleToggleContinuous)
+        continuousSegmentCountRef.current = 0;
+        const didStart = await audioManagerRef.current.startContinuousRecording();
+        if (didStart) {
+          void playStartCue();
+          window.electronAPI?.registerContinuousShortcuts?.();
+        }
+      } else {
+        // Tap mode - regular recording
+        await startRecording();
+      }
+    } else if (currentState.isRecording) {
       await stopRecording();
     }
   };

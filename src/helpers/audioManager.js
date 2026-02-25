@@ -359,18 +359,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
-      // OWM MIGRATION: Ensure local whisper default for users migrating from original OpenWhispr
-      // Original OpenWhispr defaulted to cloud mode, but OWM defaults to local for privacy.
-      // This runs here as a backup in case useSettings hook hasn't run yet (main window timing).
-      const migrationKey = "owm_migrated_local_default_v1";
-      if (!localStorage.getItem(migrationKey)) {
-        const currentValue = localStorage.getItem("useLocalWhisper");
-        if (currentValue === "false") {
-          logger.info("OWM Migration: Setting useLocalWhisper to 'true' (local-first default)", {}, "transcription");
-          localStorage.setItem("useLocalWhisper", "true");
-        }
-        localStorage.setItem(migrationKey, "true");
-      }
+      // OWM MIGRATION: Run centralized migration (backup in case shouldUseStreaming wasn't called)
+      this._runLocalWhisperMigration();
 
       // Read raw localStorage values for debugging
       const rawUseLocalWhisper = localStorage.getItem("useLocalWhisper");
@@ -450,6 +440,9 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         return;
       }
 
+      // OWM FIX: Pass continuous state captured at start of processAudio, not live state
+      // This prevents race condition where _cleanupContinuous runs before callback fires
+      result.isContinuous = isContinuous;
       this.onTranscriptionComplete?.(result);
 
       const roundTripDurationMs = Math.round(performance.now() - pipelineStart);
@@ -2188,6 +2181,10 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   shouldUseStreaming(isSignedInOverride) {
+    // OWM MIGRATION: Run migration before reading useLocalWhisper
+    // This is the earliest code path that reads this setting (called on mount warmup)
+    this._runLocalWhisperMigration();
+
     const cloudTranscriptionMode =
       localStorage.getItem("cloudTranscriptionMode") ||
       (hasStoredByokKey() ? "byok" : "openwhispr");
@@ -2201,6 +2198,19 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       isSignedIn &&
       !streamingDisabled
     );
+  }
+
+  // OWM: Centralized migration logic - can be called from multiple code paths
+  _runLocalWhisperMigration() {
+    const migrationKey = "owm_migrated_local_default_v1";
+    if (localStorage.getItem(migrationKey)) return; // Already migrated
+
+    const currentValue = localStorage.getItem("useLocalWhisper");
+    if (currentValue === "false") {
+      logger.info("OWM Migration: Setting useLocalWhisper to 'true' (local-first default)", {}, "transcription");
+      localStorage.setItem("useLocalWhisper", "true");
+    }
+    localStorage.setItem(migrationKey, "true");
   }
 
   async warmupStreamingConnection({ isSignedIn: isSignedInOverride } = {}) {
@@ -2706,6 +2716,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         success: true,
         text: finalText,
         source: "deepgram-streaming",
+        isContinuous: false, // Streaming isn't used with continuous mode
       });
 
       logger.info(
