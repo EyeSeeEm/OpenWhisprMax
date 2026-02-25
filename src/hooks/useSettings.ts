@@ -85,9 +85,9 @@ function migratePreferredLanguage() {
 function useSettingsInternal() {
   migratePreferredLanguage();
 
-  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", false, {
+  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", true, {
     serialize: String,
-    deserialize: (value) => value === "true",
+    deserialize: (value) => value !== "false",
   });
 
   const [whisperModel, setWhisperModel] = useLocalStorage("whisperModel", "base", {
