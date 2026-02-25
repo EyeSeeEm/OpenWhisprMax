@@ -1931,6 +1931,14 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       source.connect(this.levelAnalyser);
 
       const dataArray = new Uint8Array(this.levelAnalyser.frequencyBinCount);
+      let sampleCount = 0;
+      let peakLevel = 0;
+
+      logger.debug("Audio level monitoring started", {
+        sampleRate: this.levelAudioContext.sampleRate,
+        fftSize: this.levelAnalyser.fftSize,
+        hasCallback: !!this.onAudioLevel,
+      }, "audio");
 
       this.levelMonitorInterval = setInterval(() => {
         if (!this.levelAnalyser) return;
@@ -1947,6 +1955,19 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         // Normalize to 0-1 range (255 is max byte value)
         const level = Math.min(1, rms / 128);
 
+        // Track peak for debug logging
+        if (level > peakLevel) peakLevel = level;
+        sampleCount++;
+
+        // Log every ~500ms (10 samples at 50ms interval)
+        if (sampleCount % 10 === 0) {
+          logger.debug("Audio level sample", {
+            currentLevel: level.toFixed(3),
+            peakLevel: peakLevel.toFixed(3),
+            sampleCount,
+          }, "audio");
+        }
+
         this.onAudioLevel?.(level);
       }, 50); // Update every 50ms for smooth animation
     } catch (error) {
@@ -1958,6 +1979,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     if (this.levelMonitorInterval) {
       clearInterval(this.levelMonitorInterval);
       this.levelMonitorInterval = null;
+      logger.debug("Audio level monitoring stopped", {}, "audio");
     }
 
     if (this.levelAudioContext && this.levelAudioContext.state !== "closed") {
