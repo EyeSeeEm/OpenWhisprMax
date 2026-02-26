@@ -1960,8 +1960,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         }
         const rms = Math.sqrt(sum / dataArray.length);
 
-        // Normalize and amplify for better visual response
-        const level = Math.min(1, rms * 3);
+        // Normalize and amplify for better visual response (8x for strong reaction)
+        const level = Math.min(1, rms * 8);
 
         // Track peak for debug logging
         if (level > peakLevel) peakLevel = level;

@@ -38,8 +38,8 @@ export const VoiceReactiveIndicator: React.FC<VoiceReactiveIndicatorProps> = ({
             height: getBarHeight(i),
             borderRadius: "var(--radius-sm)",
             opacity: "var(--opacity-high)",
-            // Fast transition - responsive to voice starting AND stopping
-            transition: "height 16ms linear",
+            // 50ms transition - visible but still responsive
+            transition: "height 50ms linear",
           }}
         />
       ))}
