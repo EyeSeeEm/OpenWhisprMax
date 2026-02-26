@@ -1822,10 +1822,13 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.continuousSpeechDetected = false;
       this.onStateChange?.({ isRecording: true, isProcessing: false });
 
+      // Start voice-reactive UI level monitoring (same as tap mode)
+      this._startLevelMonitoring(this.continuousStream);
+
       // Start the first MediaRecorder segment
       this._startContinuousSegment();
 
-      // Begin monitoring audio levels
+      // Begin monitoring audio levels for silence detection
       this._startContinuousMonitor();
 
       return true;
@@ -1945,24 +1948,27 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.levelMonitorInterval = setInterval(() => {
         if (!this.levelAnalyser) return;
 
-        this.levelAnalyser.getByteFrequencyData(dataArray);
+        // Use time-domain data for faster response (no FFT delay)
+        this.levelAnalyser.getByteTimeDomainData(dataArray);
 
-        // Calculate RMS (root mean square) for a more accurate level
+        // Calculate RMS from time-domain waveform
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i] * dataArray[i];
+          // Convert from 0-255 to -1 to 1 range (128 is center/silence)
+          const sample = (dataArray[i] - 128) / 128;
+          sum += sample * sample;
         }
         const rms = Math.sqrt(sum / dataArray.length);
 
-        // Normalize to 0-1 range (255 is max byte value)
-        const level = Math.min(1, rms / 128);
+        // Normalize and amplify for better visual response
+        const level = Math.min(1, rms * 3);
 
         // Track peak for debug logging
         if (level > peakLevel) peakLevel = level;
         sampleCount++;
 
-        // Log every ~500ms (10 samples at 50ms interval)
-        if (sampleCount % 10 === 0) {
+        // Log every ~500ms (30 samples at 16ms interval)
+        if (sampleCount % 30 === 0) {
           logger.debug("Audio level sample", {
             currentLevel: level.toFixed(3),
             peakLevel: peakLevel.toFixed(3),
@@ -1971,7 +1977,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         }
 
         this.onAudioLevel?.(level);
-      }, 50); // Update every 50ms for smooth animation
+      }, 16); // Update at 60fps for fast response
     } catch (error) {
       logger.debug("Failed to start level monitoring", { error: error.message }, "audio");
     }
@@ -2130,6 +2136,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
   _cleanupContinuous() {
     this._stopContinuousMonitor();
+    this._stopLevelMonitoring(); // Stop voice-reactive UI level monitoring
 
     this.isContinuousMode = false;
     this.isRecording = false;
