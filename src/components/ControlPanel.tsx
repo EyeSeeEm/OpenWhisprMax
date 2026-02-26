@@ -40,7 +40,8 @@ export default function ControlPanel() {
   const { t } = useTranslation();
   const history = useTranscriptions();
   const [isLoading, setIsLoading] = useState(true);
-  const [showSettings, setShowSettings] = useState(false);
+  // OWM: Show settings by default when control panel opens
+  const [showSettings, setShowSettings] = useState(true);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [limitData, setLimitData] = useState<{ wordsUsed: number; limit: number } | null>(null);
   const hasShownUpgradePrompt = useRef(false);

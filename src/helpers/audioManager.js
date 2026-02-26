@@ -359,18 +359,14 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const isContinuous = this.isContinuousMode;
 
     try {
-      // OWM MIGRATION: Run centralized migration (backup in case shouldUseStreaming wasn't called)
-      this._runLocalWhisperMigration();
-
       // Read raw localStorage values for debugging
       const rawUseLocalWhisper = localStorage.getItem("useLocalWhisper");
       const rawCloudMode = localStorage.getItem("cloudTranscriptionMode");
       const rawIsSignedIn = localStorage.getItem("isSignedIn");
       const rawLocalProvider = localStorage.getItem("localTranscriptionProvider");
 
-      // OWM CHANGE: Default to local whisper (true) unless explicitly set to "false"
-      // This ensures privacy-first local transcription by default
-      const useLocalWhisper = rawUseLocalWhisper !== "false";
+      // OWM: Default to cloud transcription unless explicitly set to "true"
+      const useLocalWhisper = rawUseLocalWhisper === "true";
       const localProvider = rawLocalProvider || "whisper";
       const whisperModel = localStorage.getItem("whisperModel") || "base";
       const parakeetModel = localStorage.getItem("parakeetModel") || "parakeet-tdt-0.6b-v3";
@@ -2181,10 +2177,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   shouldUseStreaming(isSignedInOverride) {
-    // OWM MIGRATION: Run migration before reading useLocalWhisper
-    // This is the earliest code path that reads this setting (called on mount warmup)
-    this._runLocalWhisperMigration();
-
     const cloudTranscriptionMode =
       localStorage.getItem("cloudTranscriptionMode") ||
       (hasStoredByokKey() ? "byok" : "openwhispr");
@@ -2198,19 +2190,6 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       isSignedIn &&
       !streamingDisabled
     );
-  }
-
-  // OWM: Centralized migration logic - can be called from multiple code paths
-  _runLocalWhisperMigration() {
-    const migrationKey = "owm_migrated_local_default_v1";
-    if (localStorage.getItem(migrationKey)) return; // Already migrated
-
-    const currentValue = localStorage.getItem("useLocalWhisper");
-    if (currentValue === "false") {
-      logger.info("OWM Migration: Setting useLocalWhisper to 'true' (local-first default)", {}, "transcription");
-      localStorage.setItem("useLocalWhisper", "true");
-    }
-    localStorage.setItem(migrationKey, "true");
   }
 
   async warmupStreamingConnection({ isSignedIn: isSignedInOverride } = {}) {

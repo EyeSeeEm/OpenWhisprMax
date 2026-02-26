@@ -82,37 +82,13 @@ function migratePreferredLanguage() {
   }
 }
 
-// OWM MIGRATION: Default to local whisper for users migrating from original OpenWhispr
-// Original OpenWhispr defaulted to cloud mode (useLocalWhisper="false"), but OWM
-// should default to local mode for privacy. This migration runs once per user.
-let _owmMigrated = false;
-function migrateToLocalWhisperDefault() {
-  if (_owmMigrated) return;
-  _owmMigrated = true;
-
-  const migrationKey = "owm_migrated_local_default_v1";
-  if (localStorage.getItem(migrationKey)) return; // Already migrated
-
-  const currentValue = localStorage.getItem("useLocalWhisper");
-
-  // If the value is explicitly "false" (from original OpenWhispr), migrate to local
-  // This ensures OWM users get local-first transcription by default
-  if (currentValue === "false") {
-    console.log("[OWM Migration] Migrating useLocalWhisper from 'false' to 'true' (local-first default)");
-    localStorage.setItem("useLocalWhisper", "true");
-  }
-
-  // Mark as migrated so we don't interfere with user's future choices
-  localStorage.setItem(migrationKey, "true");
-}
-
 function useSettingsInternal() {
   migratePreferredLanguage();
-  migrateToLocalWhisperDefault();
 
-  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", true, {
+  // OWM: Default to cloud transcription (useLocalWhisper: false)
+  const [useLocalWhisper, setUseLocalWhisper] = useLocalStorage("useLocalWhisper", false, {
     serialize: String,
-    deserialize: (value) => value !== "false",
+    deserialize: (value) => value === "true",
   });
 
   const [whisperModel, setWhisperModel] = useLocalStorage("whisperModel", "base", {
