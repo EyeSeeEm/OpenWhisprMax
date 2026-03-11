@@ -1938,6 +1938,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       const dataArray = new Uint8Array(this.levelAnalyser.frequencyBinCount);
       let sampleCount = 0;
       let peakLevel = 0;
+      let heldLevel = 0; // For 50ms hold effect
 
       logger.debug("Audio level monitoring started", {
         sampleRate: this.levelAudioContext.sampleRate,
@@ -1960,8 +1961,16 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         }
         const rms = Math.sqrt(sum / dataArray.length);
 
-        // Normalize and amplify for better visual response (8x for strong reaction)
-        const level = Math.min(1, rms * 8);
+        // Normalize and amplify for better visual response (16x for strong reaction)
+        const level = Math.min(1, rms * 16);
+
+        // 50ms hold effect: bars jump up instantly but decay slowly
+        // At 16ms intervals, decay factor of 0.7 gives ~50ms visual hold
+        if (level >= heldLevel) {
+          heldLevel = level; // Jump up instantly
+        } else {
+          heldLevel = heldLevel * 0.7; // Decay gradually over ~50ms
+        }
 
         // Track peak for debug logging
         if (level > peakLevel) peakLevel = level;
@@ -1971,12 +1980,13 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         if (sampleCount % 30 === 0) {
           logger.debug("Audio level sample", {
             currentLevel: level.toFixed(3),
+            heldLevel: heldLevel.toFixed(3),
             peakLevel: peakLevel.toFixed(3),
             sampleCount,
           }, "audio");
         }
 
-        this.onAudioLevel?.(level);
+        this.onAudioLevel?.(heldLevel);
       }, 16); // Update at 60fps for fast response
     } catch (error) {
       logger.debug("Failed to start level monitoring", { error: error.message }, "audio");
