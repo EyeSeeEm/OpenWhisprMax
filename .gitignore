@@ -311,3 +311,10 @@ ehthumbs.db
 Thumbs.db 
 .macos-globe-listener.hash
 .linux-fast-paste.hash
+
+# Runtime debug log (appended on each launch)
+DEBUG_LOG.txt
+
+# Local Windows launchers (machine-specific)
+Start-OpenWhispr.cmd
+Start-OpenWhispr-Silent.vbs

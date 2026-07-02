@@ -329,9 +329,9 @@ function useSettingsInternal() {
   }, []);
 
   // Reasoning settings
-  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", true, {
+  const [useReasoningModel, setUseReasoningModel] = useLocalStorage("useReasoningModel", false, {
     serialize: String,
-    deserialize: (value) => value !== "false", // Default true
+    deserialize: (value) => value === "true", // Default false (text cleanup off by default)
   });
 
   const [reasoningModel, setReasoningModel] = useLocalStorage("reasoningModel", "", {
