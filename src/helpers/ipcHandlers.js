@@ -88,6 +88,7 @@ class IPCHandlers {
     });
 
     ipcMain.handle("hide-window", () => {
+      debugLogger.debug("hide-window requested by overlay (Hide this for now / auto-hide)", {}, "window");
       if (process.platform === "darwin") {
         this.windowManager.hideDictationPanel();
         if (app.dock) app.dock.show();

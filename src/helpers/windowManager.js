@@ -4,6 +4,7 @@ const DragManager = require("./dragManager");
 const MenuManager = require("./menuManager");
 const DevServerManager = require("./devServerManager");
 const { i18nMain } = require("./i18nMain");
+const debugLogger = require("./debugLogger");
 const { DEV_SERVER_PORT } = DevServerManager;
 const {
   MAIN_WINDOW_CONFIG,
@@ -186,9 +187,19 @@ class WindowManager {
       }
       lastToggleTime = now;
 
-      if (!this.mainWindow.isVisible()) {
-        this.mainWindow.show();
-      }
+      debugLogger.debug(
+        "Hotkey pressed",
+        {
+          activationMode,
+          hotkey: currentHotkey,
+          panelVisible: this.mainWindow.isVisible(),
+          panelMinimized: this.mainWindow.isMinimized(),
+        },
+        "hotkey"
+      );
+
+      // Always bring the panel back (hidden via "Hide this for now", minimized, or a dead page)
+      this.showDictationPanel();
 
       // Continuous mode uses a dedicated IPC event
       if (activationMode === "continuous") {
@@ -574,9 +585,55 @@ class WindowManager {
           this.mainWindow.show();
         }
       }
+      this.enforceMainWindowOnTop();
       if (focus) {
         this.mainWindow.focus();
       }
+      // Self-heal: if the overlay page does not answer, reload it
+      void this.ensureDictationPanelAlive();
+    }
+  }
+
+  // The overlay is a transparent window: a crashed or frozen page paints nothing, so
+  // show() looks like it "did nothing". Ping the page; if it stays silent, reload it.
+  async ensureDictationPanelAlive() {
+    if (!this.mainWindow || this.mainWindow.isDestroyed()) return false;
+    if (this._panelHealthCheck) return this._panelHealthCheck;
+
+    const PING_TIMEOUT_MS = 1500;
+    const wc = this.mainWindow.webContents;
+    this._panelHealthCheck = (async () => {
+      let alive = false;
+      try {
+        alive = await Promise.race([
+          wc.executeJavaScript("1", true).then((v) => v === 1),
+          new Promise((resolve) => setTimeout(() => resolve(false), PING_TIMEOUT_MS)),
+        ]);
+      } catch (error) {
+        debugLogger.warn("Dictation panel ping failed", { error: error.message }, "window");
+      }
+
+      if (!alive && wc.isLoading() && !wc.isCrashed()) {
+        // Page is still on its way (e.g. dev server reload) - not a hang
+        debugLogger.debug("Dictation panel still loading - no reload", {}, "window");
+        return false;
+      }
+
+      if (!alive) {
+        debugLogger.warn(
+          "Dictation panel page not responding - reloading overlay",
+          { crashed: wc.isCrashed(), loading: wc.isLoading(), visible: this.mainWindow.isVisible() },
+          "window"
+        );
+        wc.reload();
+      }
+      return alive;
+    })();
+
+    try {
+      return await this._panelHealthCheck;
+    } finally {
+      this._panelHealthCheck = null;
     }
   }
 
@@ -646,6 +703,31 @@ class WindowManager {
 
     this.mainWindow.on("show", () => {
       this.enforceMainWindowOnTop();
+    });
+
+    this.mainWindow.on("hide", () => {
+      debugLogger.debug("Dictation panel hidden", {}, "window");
+    });
+
+    // A dead overlay page used to stay dead until the app was restarted
+    this.mainWindow.webContents.on("render-process-gone", (_event, details) => {
+      debugLogger.warn("Dictation panel renderer gone - reloading", details, "window");
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.reload();
+      }
+    });
+
+    this.mainWindow.webContents.on("unresponsive", () => {
+      debugLogger.warn("Dictation panel renderer unresponsive", {}, "window");
+      setTimeout(() => {
+        if (
+          this.mainWindow &&
+          !this.mainWindow.isDestroyed() &&
+          !this.mainWindow.webContents.isCrashed()
+        ) {
+          void this.ensureDictationPanelAlive();
+        }
+      }, 3000);
     });
 
     this.mainWindow.on("focus", () => {
